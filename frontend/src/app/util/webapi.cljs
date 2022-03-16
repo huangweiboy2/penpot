@@ -8,7 +8,6 @@
   "HTML5 web api helpers."
   (:require
    [app.common.data :as d]
-   [app.common.exceptions :as ex]
    [app.util.object :as obj]
    [beicon.core :as rx]
    [cuerdas.core :as str]))
@@ -114,8 +113,8 @@
     (.webkitRequestFullscreen el)
 
     :else
-    (ex/raise :type :not-supported
-              :hint "seems like the current browser does not support fullscreen api.")))
+    (do (js/console.error "Seems like the current browser does not support fullscreen api.")
+        false)))
 
 (defn exit-fullscreen
   []
@@ -127,8 +126,8 @@
     (.webkitExitFullscreen js/document)
 
     :else
-    (ex/raise :type :not-supported
-              :hint "seems like the current browser does not support fullscreen api.")))
+    (do (js/console.error "Seems like the current browser does not support fullscreen api.")
+        false)))
 
 (defn observe-resize
   [node]

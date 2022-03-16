@@ -6,7 +6,6 @@
 
 (ns app.util.dom
   (:require
-    [app.common.exceptions :as ex]
     [app.common.geom.point :as gpt]
     [app.util.globals :as globals]
     [app.util.object :as obj]
@@ -305,8 +304,8 @@
     (boolean (.-fullscreenElement globals/document))
 
     :else
-    (ex/raise :type :not-supported
-              :hint "seems like the current browser does not support fullscreen api.")))
+    (do (js/console.error "Seems like the current browser does not support fullscreen api.")
+        false)))
 
 (defn ^boolean blob?
   [^js v]
