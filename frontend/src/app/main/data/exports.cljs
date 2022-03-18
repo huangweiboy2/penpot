@@ -9,13 +9,15 @@
    [app.main.data.modal :as modal]
    [app.main.data.workspace.persistence :as dwp]
    [app.main.data.workspace.state-helpers :as wsh]
+   [app.main.refs :as refs]
    [app.main.repo :as rp]
    [app.main.store :as st]
    [app.util.dom :as dom]
    [app.util.time :as dt]
    [app.util.websocket :as ws]
    [beicon.core :as rx]
-   [potok.core :as ptk]))
+   [potok.core :as ptk]
+   [rumext.alpha :as mf]))
 
 (defn toggle-detail-visibililty
   []
@@ -89,6 +91,28 @@
                           (assoc :name (:name shape))))]
         (rx/of (modal/show :export-shapes {:exports (vec exports)
                                            :filename filename}))))))
+
+(defn show-workspace-export-frames-dialog
+  ([frames]
+   (ptk/reify ::show-workspace-export-frames-dialog
+     ptk/WatchEvent
+     (watch [_ state _]
+       (let [file-id  (:current-file-id state)
+             page-id  (:current-page-id state)
+             ;; TODO .pdf
+             filename (-> (wsh/lookup-page state page-id) :name)
+
+             exports  (for [frame  frames]
+                        {:enabled true
+                         :page-id page-id
+                         :file-id file-id
+                         :frame-id (:id frame)
+                         :shape frame
+                         :name (:name frame)})]
+
+         (rx/of (modal/show :export-shapes
+                            {:exports (vec exports)
+                             :filename filename})))))))
 
 (defn- initialize-export-status
   [exports filename resource-id]

@@ -188,6 +188,11 @@
         (mf/use-callback
          (mf/deps file frames)
          (fn [_]
+           (println "asdasdasd" frames)
+           (st/emit! (de/show-workspace-export-frames-dialog frames))))        
+        #_(mf/use-callback
+         (mf/deps file frames)
+         (fn [_]
            (when (seq frames)
              (let [filename (dm/str (:name file) ".pdf")
                    xform    (comp (map :id)

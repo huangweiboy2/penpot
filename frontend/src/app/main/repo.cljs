@@ -124,7 +124,8 @@
 
 (defmethod query :export-shapes-multiple
   [_ params]
-  (send-export-command :cmd :export-shapes :params params :blob? false))
+  ;; (send-export-command :cmd :export-shapes :params params :blob? false))
+  (send-export-command :cmd :export-frames :params params :blob? false))
 
 (defmethod query :download-export-resource
   [_ id]

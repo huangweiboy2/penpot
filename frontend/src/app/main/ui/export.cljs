@@ -14,6 +14,7 @@
    [app.main.refs :as refs]
    [app.main.store :as st]
    [app.main.ui.icons :as i]
+   [app.main.ui.shapes.frame :as frame]
    [app.main.ui.workspace.shapes :refer [shape-wrapper]]
    [app.util.dom :as dom]
    [app.util.i18n :as i18n :refer  [tr c]]
@@ -88,18 +89,24 @@
                     [:span i/checkbox-checked]
                     [:span i/checkbox-unchecked])]
 
+
+                 (println "ASDASDASD" (some? (:thumbnail shape)))
+                 [:& frame/frame-thumbnail {:shape shape}]
+
                  [:div.field.image
-                  [:svg {:view-box (dm/str x " " y " " width " " height)
-                         :width 24
-                         :height 20
-                         :version "1.1"
-                         :xmlns "http://www.w3.org/2000/svg"
-                         :xmlnsXlink "http://www.w3.org/1999/xlink"
+                  (if (some? (:thumbnail shape))
+                    [:& frame/frame-thumbnail {:shape shape}]
+                    [:svg {:view-box (dm/str x " " y " " width " " height)
+                           :width 24
+                           :height 20
+                           :version "1.1"
+                           :xmlns "http://www.w3.org/2000/svg"
+                           :xmlnsXlink "http://www.w3.org/1999/xlink"
                          ;; Fix Chromium bug about color of html texts
                          ;; https://bugs.chromium.org/p/chromium/issues/detail?id=1244560#c5
-                         :style {:-webkit-print-color-adjust :exact}}
+                           :style {:-webkit-print-color-adjust :exact}}
 
-                   [:& shape-wrapper {:shape shape}]]]
+                     [:& shape-wrapper {:shape shape}]])]
 
                  [:div.field.name (cond-> (:name shape) suffix (str suffix))]
                  [:div.field.scale (dm/str (* width (:scale export)) "x"
