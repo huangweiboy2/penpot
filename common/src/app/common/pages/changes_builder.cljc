@@ -253,7 +253,8 @@
   ([changes ids update-fn]
    (update-shapes changes ids update-fn nil))
 
-  ([changes ids update-fn {:keys [attrs ignore-geometry?] :or {attrs nil ignore-geometry? false}}]
+  ([changes ids update-fn {:keys [attrs ignore-geometry? ignore-touched]
+                           :or {attrs nil ignore-geometry? false ignore-touched false}}]
    (assert-container-id changes)
    (assert-objects changes)
    (let [page-id      (::page-id (meta changes))
@@ -267,8 +268,11 @@
              (if (= old-val new-val)
                operations
                (-> operations
-                   (update :rops conj {:type :set :attr attr :val new-val :ignore-geometry ignore-geometry?})
-                   (update :uops conj {:type :set :attr attr :val old-val :ignore-touched true})))))
+                   (update :rops conj {:type :set :attr attr :val new-val
+                                       :ignore-geometry ignore-geometry?
+                                       :ignore-touched ignore-touched})
+                   (update :uops conj {:type :set :attr attr :val old-val
+                                       :ignore-touched true})))))
 
          update-shape
          (fn [changes id]

@@ -63,12 +63,14 @@
                        new-state
                        (:id instance1))]
 
+                 (t/is (= (:touched instance1) nil))
+                 (t/is (= (:touched shape1) #{:fill-group}))
                  (t/is (= (:fill-color shape1) clr/test))
                  (t/is (= (:fill-opacity shape1) 0.5))
-                 (t/is (= (:touched shape1) #{:fill-group}))
+                 (t/is (= (:touched c-group) nil))
+                 (t/is (= (:touched c-shape1) nil))
                  (t/is (= (:fill-color c-shape1) clr/white))
-                 (t/is (= (:fill-opacity c-shape1) 1))
-                 (t/is (= (:touched c-shape1) nil)))))]
+                 (t/is (= (:fill-opacity c-shape1) 1)))))]
 
         (ptk/emit!
           store
@@ -114,18 +116,22 @@
                        new-state
                        (:id instance1))]
 
-                 (t/is (= (:touched instance1) #{:shapes-group}))
+                 (t/is (= (:touched group) #{:shapes-group}))
+                 (t/is (nil? (:touched shape1)))
                  (t/is (= (:name shape1) "Circle 1"))
                  (t/is (nil? (:shape-ref shape1)))
+                 (t/is (nil? (:touched shape2)))
                  (t/is (= (:name shape2) "Rect 1"))
-                 (t/is (some? (:shape-ref shape2))))))]
+                 (t/is (some? (:shape-ref shape2)))
+                 (t/is (nil? (:touched c-group)))
+                 (t/is (nil? (:touched c-shape1))))))]
 
         (ptk/emit!
           store
           (dw/relocate-shapes #{(:id shape2)} (:id instance1) 0)
           :the/end)))))
 
-(t/deftest test-touched-children-remove
+(t/deftest test-touched-children-delete
   (t/async done
     (try
       (let [state (-> thp/initial-state
@@ -162,13 +168,84 @@
                        new-state
                        (:id instance1))]
 
-                 (t/is (= (:touched instance1) #{:shapes-group}))
+                 (t/is (= (:touched group) #{:shapes-group}))
+                 (t/is (nil? (:touched shape2)))
                  (t/is (= (:name shape2) "Rect 2"))
-                 (t/is (some? (:shape-ref shape2))))))]
+                 (t/is (some? (:shape-ref shape2)))
+                 (t/is (nil? (:touched c-group)))
+                 (t/is (nil? (:touched c-shape2))))))]
 
         (ptk/emit!
           store
           (dwc/delete-shapes #{(:id shape1)})
+          :the/end)))))
+
+(t/deftest test-touched-children-move
+  (t/async done
+    (try
+      (let [state (-> thp/initial-state
+                      (thp/sample-page)
+                      (thp/sample-shape :shape1 :rect
+                                        {:name "Rect 1"})
+                      (thp/sample-shape :shape2 :rect
+                                        {:name "Rect 2"})
+                      (thp/sample-shape :shape3 :rect
+                                        {:name "Rect 3"})
+                      (thp/make-component :instance1 :component-1
+                                          [(thp/id :shape1)
+                                           (thp/id :shape2)
+                                           (thp/id :shape3)]))
+
+            shape1    (thp/get-shape state :shape1)
+            instance1 (thp/get-shape state :instance1)
+
+            store (the/prepare-store state done
+             (fn [new-state]
+               ;; (debug/dump-tree' new-state false true)
+               ; Expected shape tree:
+               ;
+               ; [Page]
+               ; Root Frame
+               ;   Component-1*        #--> Component-1
+               ;       #{:shapes-group}
+               ;     Rect 2            ---> Rect 2
+               ;     Rect 1            ---> Rect 1
+               ;     Rect 3            ---> Rect 3
+               ;
+               ; [Component-1]
+               ; Component-1
+               ;   Rect 1
+               ;   Rect 2
+               ;   Rect 3
+               ;
+               (let [instance1 (thp/get-shape new-state :instance1)
+
+                     [[group shape1 shape2 shape3] [c-group c-shape1 c-shape2 c-shape3] component]
+                     (thl/resolve-instance-and-main-allow-dangling
+                       new-state
+                       (:id instance1))]
+
+                 (t/is (= (:touched group) #{:shapes-group}))
+                 (t/is (nil? (:touched shape1)))
+                 (t/is (some? (:shape-ref shape1)))
+                 (t/is (= (:name shape1) "Rect 2"))
+                 (t/is (nil? (:touched shape2)))
+                 (t/is (some? (:shape-ref shape2)))
+                 (t/is (= (:name shape2) "Rect 1"))
+                 (t/is (nil? (:touched shape3)))
+                 (t/is (some? (:shape-ref shape3)))
+                 (t/is (= (:name shape3) "Rect 3"))
+                 (t/is (nil? (:touched c-group)))
+                 (t/is (nil? (:touched c-shape1)))
+                 (t/is (= (:name c-shape1) "Rect 1"))
+                 (t/is (nil? (:touched c-shape2)))
+                 (t/is (= (:name c-shape2) "Rect 2"))
+                 (t/is (nil? (:touched c-shape3)))
+                 (t/is (= (:name c-shape3) "Rect 3")))))]
+
+        (ptk/emit!
+          store
+          (dw/relocate-shapes #{(:id shape1)} (:id instance1) 2)
           :the/end)))))
 
 (t/deftest test-reset-changes
@@ -192,7 +269,6 @@
 
             store (the/prepare-store state done
               (fn [new-state]
-                (debug/dump-tree' new-state false true)
                 ; Expected shape tree:
                 ;
                 ; [Page]
@@ -271,7 +347,7 @@
           (dwl/reset-component (:id instance1))
           :the/end)))))
 
-(t/deftest test-reset-children-remove
+(t/deftest test-reset-children-delete
   (t/async done
     (try
       (let [state (-> thp/initial-state
