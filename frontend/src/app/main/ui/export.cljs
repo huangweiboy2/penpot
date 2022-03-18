@@ -41,11 +41,13 @@
           (dom/prevent-default event)
           (st/emit! (modal/hide)))
 
+        ;; TODO: parametrizar
         accept-fn
         (fn [event]
           (dom/prevent-default event)
           (st/emit! (modal/hide)
                     (de/request-multiple-export {:filename filename :exports enabled-exports})))
+
         on-toggle-enabled
         (fn [index]
           (swap! exports update-in [index :enabled] not))
@@ -61,6 +63,7 @@
 
       [:div.modal-header
        [:div.modal-header-title
+        ;; TODO: set title as param
         [:h2 (tr "dashboard.export-shapes.title")]]
 
        [:div.modal-close-button
@@ -89,13 +92,9 @@
                     [:span i/checkbox-checked]
                     [:span i/checkbox-unchecked])]
 
-
-                 (println "ASDASDASD" (some? (:thumbnail shape)))
-                 [:& frame/frame-thumbnail {:shape shape}]
-
                  [:div.field.image
                   (if (some? (:thumbnail shape))
-                    [:& frame/frame-thumbnail {:shape shape}]
+                    [:img {:src (:thumbnail shape)}]
                     [:svg {:view-box (dm/str x " " y " " width " " height)
                            :width 24
                            :height 20
