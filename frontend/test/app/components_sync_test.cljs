@@ -6,7 +6,8 @@
     [app.common.geom.point :as gpt]
     [app.common.pages.helpers :as cph]
     [app.main.data.workspace :as dw]
-    [app.main.data.workspace.changes :as dwc]
+    [app.main.data.workspace.changes :as dch]
+    [app.main.data.workspace.common :as dwc]
     [app.main.data.workspace.libraries :as dwl]
     [app.main.data.workspace.libraries-helpers :as dwlh]
     [app.main.data.workspace.state-helpers :as wsh]
@@ -71,10 +72,10 @@
 
         (ptk/emit!
           store
-          (dwc/update-shapes [(:id shape1)] update-fn)
+          (dch/update-shapes [(:id shape1)] update-fn)
           :the/end)))))
 
-(t/deftest test-touched-children
+(t/deftest test-touched-children-add
   (t/async done
     (try
       (let [state (-> thp/initial-state
@@ -93,7 +94,6 @@
 
             store (the/prepare-store state done
              (fn [new-state]
-               (debug/dump-tree' new-state false true)
                ; Expected shape tree:
                ;
                ; [Page]
@@ -108,25 +108,67 @@
                ;   Rect 1
                ;
                (let [instance1 (thp/get-shape new-state :instance1)
-                     shape1 (thp/get-shape new-state :shape1)
 
                      [[group shape1 shape2] [c-group c-shape1] component]
-                     (thl/resolve-instance-and-main
+                     (thl/resolve-instance-and-main-allow-dangling
                        new-state
                        (:id instance1))]
 
-                 ;; (t/is (= (:fill-color shape1) clr/test))
-                 ;; (t/is (= (:fill-opacity shape1) 0.5))
-                 ;; (t/is (= (:touched shape1) #{:fill-group}))
-                 ;; (t/is (= (:fill-color c-shape1) clr/white))
-                 ;; (t/is (= (:fill-opacity c-shape1) 1))
-                 ;; (t/is (= (:touched c-shape1) nil))
-                 )
-               ))]
+                 (t/is (= (:touched instance1) #{:shapes-group}))
+                 (t/is (= (:name shape1) "Circle 1"))
+                 (t/is (nil? (:shape-ref shape1)))
+                 (t/is (= (:name shape2) "Rect 1"))
+                 (t/is (some? (:shape-ref shape2))))))]
 
         (ptk/emit!
           store
           (dw/relocate-shapes #{(:id shape2)} (:id instance1) 0)
+          :the/end)))))
+
+(t/deftest test-touched-children-remove
+  (t/async done
+    (try
+      (let [state (-> thp/initial-state
+                      (thp/sample-page)
+                      (thp/sample-shape :shape1 :rect
+                                        {:name "Rect 1"})
+                      (thp/sample-shape :shape2 :rect
+                                        {:name "Rect 2"})
+                      (thp/make-component :instance1 :component-1
+                                          [(thp/id :shape1)
+                                           (thp/id :shape2)]))
+
+            shape1    (thp/get-shape state :shape1)
+
+            store (the/prepare-store state done
+             (fn [new-state]
+               ; Expected shape tree:
+               ;
+               ; [Page]
+               ; Root Frame
+               ;   Component-1*           #--> Component-1
+               ;       #{:shapes-group}
+               ;     Rect 2               ---> Rect 2
+               ;
+               ; [Component-1]
+               ; Component-1
+               ;   Rect 1
+               ;   Rect 2
+               ;
+               (let [instance1 (thp/get-shape new-state :instance1)
+
+                     [[group shape2] [c-group c-shape2] component]
+                     (thl/resolve-instance-and-main-allow-dangling
+                       new-state
+                       (:id instance1))]
+
+                 (t/is (= (:touched instance1) #{:shapes-group}))
+                 (t/is (= (:name shape2) "Rect 2"))
+                 (t/is (some? (:shape-ref shape2))))))]
+
+        (ptk/emit!
+          store
+          (dwc/delete-shapes #{(:id shape1)})
           :the/end)))))
 
 (t/deftest test-reset-changes
@@ -150,6 +192,7 @@
 
             store (the/prepare-store state done
               (fn [new-state]
+                (debug/dump-tree' new-state false true)
                 ; Expected shape tree:
                 ;
                 ; [Page]
@@ -177,7 +220,100 @@
 
         (ptk/emit!
           store
-          (dwc/update-shapes [(:id shape1)] update-fn)
+          (dch/update-shapes [(:id shape1)] update-fn)
+          (dwl/reset-component (:id instance1))
+          :the/end)))))
+
+(t/deftest test-reset-children-add
+  (t/async done
+    (try
+      (let [state (-> thp/initial-state
+                      (thp/sample-page)
+                      (thp/sample-shape :shape1 :rect
+                                        {:name "Rect 1"
+                                         :fill-color clr/white
+                                         :fill-opacity 1})
+                      (thp/make-component :instance1 :component-1
+                                          [(thp/id :shape1)])
+                      (thp/sample-shape :shape2 :circle
+                                        {:name "Circle 1"}))
+
+            instance1 (thp/get-shape state :instance1)
+            shape2    (thp/get-shape state :shape2)
+
+            store (the/prepare-store state done
+             (fn [new-state]
+               ; Expected shape tree:
+               ;
+               ; [Page]
+               ; Root Frame
+               ;   Rect 1-1            #--> Rect 1-1
+               ;     Rect 1            ---> Rect 1
+               ;
+               ; [Rect 1]
+               ; Rect 1-1
+               ;   Rect 1
+               ;
+               (let [instance1 (thp/get-shape new-state :instance1)
+
+                     [[group shape1] [c-group c-shape1] component]
+                     (thl/resolve-instance-and-main
+                       new-state
+                       (:id instance1))]
+
+                 (t/is (nil? (:touched instance1)))
+                 (t/is (= (:name shape1) "Rect 1"))
+                 (t/is (some? (:shape-ref shape1))))))]
+
+        (ptk/emit!
+          store
+          (dw/relocate-shapes #{(:id shape2)} (:id instance1) 0)
+          (dwl/reset-component (:id instance1))
+          :the/end)))))
+
+(t/deftest test-reset-children-remove
+  (t/async done
+    (try
+      (let [state (-> thp/initial-state
+                      (thp/sample-page)
+                      (thp/sample-shape :shape1 :rect
+                                        {:name "Rect 1"})
+                      (thp/sample-shape :shape2 :rect
+                                        {:name "Rect 2"})
+                      (thp/make-component :instance1 :component-1
+                                          [(thp/id :shape1)
+                                           (thp/id :shape2)]))
+
+            instance1 (thp/get-shape state :instance1)
+            shape1    (thp/get-shape state :shape1)
+
+            store (the/prepare-store state done
+             (fn [new-state]
+               ; Expected shape tree:
+               ;
+               ; [Page]
+               ; Root Frame
+               ;   Rect 1-1            #--> Rect 1-1
+               ;     Rect 1            ---> Rect 1
+               ;
+               ; [Rect 1]
+               ; Rect 1-1
+               ;   Rect 1
+               ;
+               (let [instance1 (thp/get-shape new-state :instance1)
+
+                     [[group shape1] [c-group c-shape1] component]
+                     (thl/resolve-instance-and-main
+                       new-state
+                       (:id instance1))]
+
+                 (t/is (nil? (:touched instance1)))
+                 (t/is (= (:name shape1) "Rect 1"))
+                 (t/is (some? (:shape-ref shape1))))))]
+
+        (ptk/emit!
+          store
+          (dwc/delete-shapes #{(:id shape1)})
           (dwl/reset-component (:id instance1))
           :the/end)))))
 
@@ -227,7 +363,7 @@
 
         (ptk/emit!
           store
-          (dwc/update-shapes [(:id shape1)] update-fn)
+          (dch/update-shapes [(:id shape1)] update-fn)
           (dwl/update-component (:id instance1))
           :the/end)))))
 
@@ -285,7 +421,7 @@
 
         (ptk/emit!
           store
-          (dwc/update-shapes [(:id shape1)] update-fn)
+          (dch/update-shapes [(:id shape1)] update-fn)
           (dwl/update-component-sync (:id instance1) (:id file))
           :the/end)))))
 
@@ -351,8 +487,8 @@
 
         (ptk/emit!
           store
-          (dwc/update-shapes [(:id shape1)] update-fn1)
-          (dwc/update-shapes [(:id shape2)] update-fn2)
+          (dch/update-shapes [(:id shape1)] update-fn1)
+          (dch/update-shapes [(:id shape2)] update-fn2)
           (dwl/update-component-sync (:id instance1) (:id file))
           :the/end)))))
 
